@@ -1,31 +1,31 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Consulta SOAT 2023", layout="wide")
-
-st.title("📊 Consulta de Manual Tarifario SOAT")
-
-@st.cache_data
-def load_data():
-    # Leemos el archivo sin saltar filas inicialmente para no perder los títulos de los artículos
-    df = pd.read_excel("Manual-Tarifario-SOAT-2023-.xlsx", sheet_name='SOAT 2023')
-    return df
+# ... (mantener la carga de datos igual) ...
 
 try:
     df_soat = load_data()
+    
+    # Dividimos la pantalla en dos: Buscador y Normativa
+    tab1, tab2 = st.tabs(["🔍 Buscador de Códigos", "📜 Artículos y Parágrafos"])
 
-    busqueda = st.text_input("Busca por Código, Descripción, Artículo o Parágrafo:")
+    with tab1:
+        busqueda = st.text_input("Ingrese código o descripción:")
+        if busqueda:
+            mask = df_soat.apply(lambda row: row.astype(str).str.contains(busqueda, case=False).any(), axis=1)
+            st.dataframe(df_soat[mask], use_container_width=True)
 
-    if busqueda:
-        # Esta línea busca el texto en CUALQUIER columna del archivo
-        mask = df_soat.apply(lambda row: row.astype(str).str.contains(busqueda, case=False).any(), axis=1)
-        resultado = df_soat[mask]
+    with tab2:
+        # Filtramos solo las filas que parecen ser artículos o parágrafos
+        normativa = df_soat[df_soat.iloc[:, 0].astype(str).str.contains('ARTICULO|PARAGRAFO', case=False, na=False)]
         
-        st.write(f"Se encontraron {len(resultado)} resultados:")
-        st.dataframe(resultado, use_container_width=True)
-    else:
-        st.info("Escribe el número de un artículo o el nombre de un examen para comenzar.")
-        st.dataframe(df_soat.head(20), use_container_width=True)
+        seleccion = st.selectbox("Seleccione un Artículo para leerlo:", normativa.iloc[:, 0].unique())
+        
+        if seleccion:
+            # Mostramos la fila completa de ese artículo
+            detalle = normativa[normativa.iloc[:, 0] == seleccion]
+            st.warning(f"**Detalle legal:** {seleccion}")
+            st.write("Consulte los códigos asociados en la pestaña de buscador.")
 
 except Exception as e:
-    st.error(f"Error al cargar los datos: {e}")
+    st.error(f"Error: {e}")
